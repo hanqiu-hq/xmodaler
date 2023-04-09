@@ -9,8 +9,8 @@ DATALOADER:
   TRAIN_BATCH_SIZE: 8
   TEST_BATCH_SIZE: 32
   NUM_WORKERS: 4
-  FEATS_FOLDER: '../open_source_dataset/mscoco_dataset/features/up_down'
-  ANNO_FOLDER:  '../open_source_dataset/mscoco_dataset'
+  FEATS_FOLDER: './data/coco/features/up_down'
+  ANNO_FOLDER:  './data/coco'
   SEQ_PER_SAMPLE:  5
   MAX_FEAT_NUM: 50
 
@@ -36,6 +36,7 @@ MODEL:
   PREDICTOR: 'BasePredictor'
   PRED_DROPOUT: 0.5
   MAX_SEQ_LEN: 20
+  WEIGHTS: './checkpoints/transformer/model_Epoch_00030_Iter_0053099.pth'
 
 #################################### Token embedding ####################################
   TOKEN_EMBED:
@@ -105,8 +106,8 @@ SCORER:
   NAME: 'BaseScorer'
   TYPES: ['Cider']
   WEIGHTS: [1.0]
-  GT_PATH: '../open_source_dataset/mscoco_dataset/mscoco_train_gts.pkl'
-  CIDER_CACHED: '../open_source_dataset/mscoco_dataset/mscoco_train_cider.pkl'
+  GT_PATH: './data/coco/mscoco_train_gts.pkl'
+  CIDER_CACHED: './data/coco/mscoco_train_cider.pkl'
   EOS_ID: 0
 
 ####################################### decode strategy ####################################### 
@@ -117,10 +118,10 @@ DECODE_STRATEGY:
 ####################################### evaluation ####################################### 
 INFERENCE:
   NAME: 'COCOEvaler'
-  VOCAB: '../open_source_dataset/mscoco_dataset/vocabulary.txt'
+  VOCAB: './data/coco/vocabulary.txt'
   ID_KEY: 'image_id'
   VALUE: 'caption'
-  VAL_ANNFILE: '../open_source_dataset/mscoco_dataset/captions_val5k.json'
-  TEST_ANNFILE: '../open_source_dataset/mscoco_dataset/captions_test5k.json'
+  VAL_ANNFILE: './data/coco/captions_val5k.json'
+  TEST_ANNFILE: './data/coco/captions_test5k.json'
   GENERATION_MODE: True
 
