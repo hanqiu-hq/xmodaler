@@ -235,6 +235,11 @@ class BaseEncoderDecoder(nn.Module, metaclass=ABCMeta):
             ret.update({ kfg.IDS: ids })
         if kfg.SAMPLE_PER_SAMPLE in batched_inputs[0]:
             ret.update({ kfg.SAMPLE_PER_SAMPLE: sample_per_sample})
+
+        if 'img' in batched_inputs[0]:
+            batched_image = torch.stack([x['img'] for x in batched_inputs], dim=0)
+            ret.update({'img': batched_image})
+
         return ret
 
     def greedy_decode(self, batched_inputs, output_sents=False):

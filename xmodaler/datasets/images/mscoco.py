@@ -14,6 +14,11 @@ from xmodaler.config import kfg
 from xmodaler.functional import read_np, dict_as_tensor, boxes_to_locfeats
 from ..build import DATASETS_REGISTRY
 
+from detectron2.data import detection_utils as utils
+from PIL import Image
+from ..transforms import _transform
+
+
 __all__ = ["MSCoCoDataset", "MSCoCoSampleByTxtDataset"]
 
 @DATASETS_REGISTRY.register()
@@ -29,7 +34,10 @@ class MSCoCoDataset:
         feats_folder: str,
         relation_file: str,
         gv_feat_file: str,
-        attribute_file: str
+        attribute_file: str,
+        need_img: bool = False,
+        img_path: str = None,
+        img_transform = None,
     ):
         self.stage = stage
         self.anno_file = anno_file
@@ -40,7 +48,11 @@ class MSCoCoDataset:
         self.relation_file = relation_file
         self.gv_feat_file = gv_feat_file
         self.attribute_file = attribute_file
-        
+
+        self.need_img = need_img
+        self.img_folder_path = img_path
+        self.img_transform = img_transform
+
     @classmethod
     def from_config(cls, cfg, stage: str = "train"):
         ann_files = {
@@ -48,6 +60,13 @@ class MSCoCoDataset:
             "val": os.path.join(cfg.DATALOADER.ANNO_FOLDER, "mscoco_caption_anno_val.pkl"),
             "test": os.path.join(cfg.DATALOADER.ANNO_FOLDER, "mscoco_caption_anno_test.pkl")
         }
+        img_files = {
+            "train": cfg.DATALOADER.TRAIN_IMG_PATH,
+            "val": cfg.DATALOADER.TEST_IMG_PATH,
+            "test": cfg.DATALOADER.VAL_IMG_PATH,
+        }
+
+
         ret = {
             "stage": stage,
             "anno_file": ann_files[stage],
@@ -57,7 +76,10 @@ class MSCoCoDataset:
             "relation_file": cfg.DATALOADER.RELATION_FILE,
             "gv_feat_file": cfg.DATALOADER.GV_FEAT_FILE,
             "attribute_file": cfg.DATALOADER.ATTRIBUTE_FILE,
-            "max_seq_len": cfg.MODEL.MAX_SEQ_LEN
+            "max_seq_len": cfg.MODEL.MAX_SEQ_LEN,
+            "need_img": cfg.DATALOADER.NEED_IMG,
+            "img_path": img_files[stage],
+            "img_transform": _transform(cfg.DATALOADER.TEST_IMG_SIZE) if cfg.DATALOADER.NEED_IMG else None
         }
         return ret
 
@@ -125,6 +147,14 @@ class MSCoCoDataset:
         else:
             # dummy ATT_FEATS
             ret = { kfg.IDS: image_id, kfg.ATT_FEATS: np.zeros((1,1)) }
+
+        if self.need_img:
+            ori_file_name = '000000000000'
+            img_file_name = ori_file_name[:-len(image_id)] + image_id + '.jpg'
+            img_file_path = os.path.join(self.img_folder_path, img_file_name)
+            image = Image.open(img_file_path)
+            image = self.img_transform(image)
+            ret.update({'img': image})
 
         if 'relation' in dataset_dict:
             ret.update( { kfg.RELATION: dataset_dict['relation']} )

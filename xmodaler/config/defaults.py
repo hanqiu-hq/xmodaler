@@ -63,6 +63,16 @@ _C.DATALOADER.SAMPLE_IDS = []
 
 _C.DATALOADER.FILE_PATHS = []
 
+_C.DATALOADER.NEED_IMG = False
+
+_C.DATALOADER.TRAIN_IMG_PATH = './data/coco/train2017/'
+
+_C.DATALOADER.TEST_IMG_PATH = './data/coco/test2017/'
+
+_C.DATALOADER.VAL_IMG_PATH = './data/coco/val2017/'
+
+_C.DATALOADER.TEST_IMG_SIZE = 224
+
 # -----------------------------------------------------------------------------
 # Engine
 # -----------------------------------------------------------------------------
