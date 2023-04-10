@@ -60,11 +60,9 @@ class MSCoCoDataset:
             "val": os.path.join(cfg.DATALOADER.ANNO_FOLDER, "mscoco_caption_anno_val.pkl"),
             "test": os.path.join(cfg.DATALOADER.ANNO_FOLDER, "mscoco_caption_anno_test.pkl")
         }
-        img_files = {
-            "train": cfg.DATALOADER.TRAIN_IMG_PATH,
-            "val": cfg.DATALOADER.VAL_IMG_PATH,
-            "test": cfg.DATALOADER.TEST_IMG_PATH,
-        }
+        img_files = [cfg.DATALOADER.TRAIN_IMG_PATH,
+                     cfg.DATALOADER.VAL_IMG_PATH,
+                     cfg.DATALOADER.TEST_IMG_PATH]
 
         ret = {
             "stage": stage,
@@ -77,7 +75,7 @@ class MSCoCoDataset:
             "attribute_file": cfg.DATALOADER.ATTRIBUTE_FILE,
             "max_seq_len": cfg.MODEL.MAX_SEQ_LEN,
             "need_img": cfg.DATALOADER.NEED_IMG,
-            "img_path": img_files[stage],
+            "img_path": img_files,
             "img_transform": _transform(cfg.DATALOADER.TEST_IMG_SIZE) if cfg.DATALOADER.NEED_IMG else None
         }
         return ret
@@ -150,10 +148,18 @@ class MSCoCoDataset:
         if self.need_img:
             ori_file_name = '000000000000'
             img_file_name = ori_file_name[:-len(image_id)] + image_id + '.jpg'
-            img_file_path = os.path.join(self.img_folder_path, img_file_name)
-            image = Image.open(img_file_path)
-            image = self.img_transform(image)
-            ret.update({'img': image})
+            img_file_path = None
+            for folder in self.img_folder_path:
+                tmp_path = os.path.join(folder, img_file_name)
+                if os.path.exists(tmp_path):
+                    img_file_path = tmp_path
+
+            if img_file_path is not None:
+                image = Image.open(img_file_path)
+                image = self.img_transform(image)
+                ret.update({'img': image})
+            else:
+                assert AssertionError
 
         if 'relation' in dataset_dict:
             ret.update( { kfg.RELATION: dataset_dict['relation']} )
