@@ -62,10 +62,9 @@ class MSCoCoDataset:
         }
         img_files = {
             "train": cfg.DATALOADER.TRAIN_IMG_PATH,
-            "val": cfg.DATALOADER.TEST_IMG_PATH,
-            "test": cfg.DATALOADER.VAL_IMG_PATH,
+            "val": cfg.DATALOADER.VAL_IMG_PATH,
+            "test": cfg.DATALOADER.TEST_IMG_PATH,
         }
-
 
         ret = {
             "stage": stage,
