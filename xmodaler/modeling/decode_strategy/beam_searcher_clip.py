@@ -111,9 +111,10 @@ class BeamSearcherCLIP(DecodeStrategy):
         if len(img_feature.shape) == 2:
             img_feature = img_feature.unsqueeze(1)
 
-        logit_scale = self.clip_model.logit_scale.exp()
-        logits_per_image = logit_scale * torch.bmm(img_feature, text_feature).squeeze(1)
-        prob_per_text = logits_per_image.softmax(dim=-1)
+        # logit_scale = self.clip_model.logit_scale.exp()
+        # logits_per_image = logit_scale * torch.bmm(img_feature, text_feature).squeeze(1)
+        # prob_per_text = logits_per_image.softmax(dim=-1)
+        prob_per_text = torch.bmm(img_feature, text_feature).squeeze(1)
         return prob_per_text
 
     def _forward(self, batched_inputs, model):
@@ -154,10 +155,10 @@ class BeamSearcherCLIP(DecodeStrategy):
             decoder_out = model.decoder(inputs)
             inputs.update(decoder_out)
 
-            if t > 1:
-                clip_prob = self.clip_text_prob(clip_img_feats, outputs)
-            else:
-                clip_prob = 0
+            # if t > 1:
+            #     clip_prob = self.clip_text_prob(clip_img_feats, outputs)
+            # else:
+            #     clip_prob = 0
 
             logit = model.predictor(inputs)[kfg.G_LOGITS]
             word_logprob = F.log_softmax(logit, dim=-1)
@@ -223,7 +224,12 @@ class BeamSearcherCLIP(DecodeStrategy):
                         tensor = expand_tensor(inputs[key], beam_size)
                         inputs.update({ key: tensor })
 
-        seq_logprob, sort_idxs = torch.sort(seq_logprob, 1, descending=True)
+        clip_prob = self.clip_text_prob(clip_img_feats, outputs).unsqueeze(-1)
+        seq_prob = seq_logprob.exp() + clip_prob
+
+        # seq_logprob, sort_idxs = torch.sort(seq_logprob, 1, descending=True)
+        seq_logprob, sort_idxs = torch.sort(seq_prob, 1, descending=True)
+
         outputs = torch.cat(outputs, -1)
         outputs = torch.gather(outputs, 1, sort_idxs.expand(batch_size, beam_size, self.max_seq_len))
         log_probs = torch.cat(log_probs, -1)
