@@ -115,6 +115,7 @@ SCORER:
 DECODE_STRATEGY:
   NAME: 'BeamSearcherCLIP'
   BEAM_SIZE: 2
+  USE_CLIP_PROB: True
 
 ####################################### evaluation ####################################### 
 INFERENCE:
