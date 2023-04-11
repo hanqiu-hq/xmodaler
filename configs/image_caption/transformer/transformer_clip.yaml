@@ -113,7 +113,7 @@ SCORER:
 
 ####################################### decode strategy ####################################### 
 DECODE_STRATEGY:
-  NAME: 'BeamSearcher'
+  NAME: 'BeamSearcherCLIP'
   BEAM_SIZE: 2
 
 ####################################### evaluation ####################################### 

@@ -21,7 +21,7 @@ from xmodaler.functional import load_vocab, decode_sequence, decode_sequence_ber
 
 
 @DECODE_STRATEGY_REGISTRY.register()
-class BeamSearcher(DecodeStrategy):
+class BeamSearcherCLIP(DecodeStrategy):
     @configurable
     def __init__(
             self,
