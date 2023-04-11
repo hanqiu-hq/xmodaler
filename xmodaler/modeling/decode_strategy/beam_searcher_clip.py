@@ -42,7 +42,7 @@ class BeamSearcherCLIP(DecodeStrategy):
             eos_token_id)
 
         self.clip_model = clip
-
+        self.device = torch.device("cuda")
 
     @classmethod
     def from_config(cls, cfg):
@@ -94,8 +94,6 @@ class BeamSearcherCLIP(DecodeStrategy):
             img_feature: shape[batch, C]
             pred_sents_ids: list [bs, beam_size, 1]
         """
-        device = img_feature.device
-
         pred_sents_ids = torch.cat(pred_sents_ids, -1)
         bs, beam_size, seq_length = pred_sents_ids.shape
         pred_sents_ids = pred_sents_ids.reshape(-1, seq_length)
@@ -105,7 +103,7 @@ class BeamSearcherCLIP(DecodeStrategy):
         else:
             sents = decode_sequence_bert(self.bert_tokenizer, pred_sents_ids, self.eos_token_id)
 
-        sent_embed = clip_tokenize(sents).to(device)
+        sent_embed = clip_tokenize(sents).to(self.device)
         text_feature = self.clip_model.encode_text(sent_embed)
         text_feature = text_feature / text_feature.norm(dim=-1, keepdim=True)
         text_feature = text_feature.reshape(bs, beam_size, -1).transpose(1, 2)
@@ -119,8 +117,6 @@ class BeamSearcherCLIP(DecodeStrategy):
         return prob_per_text
 
     def _forward(self, batched_inputs, model):
-        device = model.device
-
         batch_size = batched_inputs[kfg.ATT_FEATS].size(0)
         out_size = batched_inputs.get('OUT_SIZE', 1)
         beam_size = self.beam_size
@@ -141,7 +137,7 @@ class BeamSearcherCLIP(DecodeStrategy):
         inputs.update(encoder_out_v)
         inputs = model.decoder.preprocess(inputs)
 
-        clip_img_feats = self.clip_model.encode_image(batched_inputs['img'].to(device))
+        clip_img_feats = self.clip_model.encode_image(batched_inputs['img'].to(self.device))
         clip_img_feats = clip_img_feats / clip_img_feats.norm(dim=-1, keepdim=True)
 
         outputs = []
