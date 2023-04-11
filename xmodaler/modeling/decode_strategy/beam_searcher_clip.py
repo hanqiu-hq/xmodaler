@@ -34,17 +34,13 @@ class BeamSearcherCLIP(DecodeStrategy):
             eos_token_id,
             clip=None,
     ):
-        super().__init__()
-        self.beam_size = beam_size
-        if bert_tokenizer is None:
-            self.vocab = load_vocab(vocab_path)
-        else:
-            self.vocab = None
-
-        self.max_seq_len = max_seq_len
-        self.bert_tokenizer = bert_tokenizer
-        self.bos_token_id = bos_token_id
-        self.eos_token_id = eos_token_id
+        super().__init__(
+            vocab_path,
+            beam_size,
+            max_seq_len,
+            bert_tokenizer,
+            bos_token_id,
+            eos_token_id)
 
         self.clip_model = clip
 
