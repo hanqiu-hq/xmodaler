@@ -343,6 +343,10 @@ _C.DECODE_STRATEGY.NAME = 'BeamSearcher'
 
 _C.DECODE_STRATEGY.BEAM_SIZE = 1
 
+_C.DECODE_STRATEGY.USE_CLIP_PROB = False
+
+_C.DECODE_STRATEGY.CLIP_MODEL = 'ViT-B/32'
+
 # ---------------------------------------------------------------------------- #
 # INFERENCE options
 # ---------------------------------------------------------------------------- #
