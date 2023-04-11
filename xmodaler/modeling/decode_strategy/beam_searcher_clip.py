@@ -26,22 +26,40 @@ class BeamSearcherCLIP(DecodeStrategy):
     def __init__(
             self,
             *,
-            cfg,
-            clip=None,
+            clip,
+            **kwargs,
     ):
-        super().__init__(cfg)
+        super().__init__(kwargs)
         self.clip_model = clip
 
     @classmethod
     def from_config(cls, cfg):
+        tokenizer_map = {'BERT': BertTokenizer}
+
+        tokenizer_cls = tokenizer_map.get(cfg.INFERENCE.VOCAB, None)
+        if tokenizer_cls is None:
+            bert_tokenizer = None
+            bos_token_id = 0
+            eos_token_id = 0
+        else:
+            bert_tokenizer = tokenizer_cls.from_pretrained(cfg.MODEL.PRETRAINING.MODEL_NAME, do_lower_case=cfg.MODEL.PRETRAINING.DO_LOWER_CASE)
+            if cfg.INFERENCE.VOCAB == 'BERT':
+                bos_token_id = bert_tokenizer.vocab["[CLS]"]
+                eos_token_id = bert_tokenizer.vocab["[SEP]"]
+
         if cfg.DECODE_STRATEGY.USE_CLIP_PROB:
             clip_model = load_clip(cfg.DECODE_STRATEGY.CLIP_MODEL)
         else:
             clip_model = None
 
         return {
-            "cfg": cfg,
-            "clip": clip_model,
+            "vocab_path": cfg.INFERENCE.VOCAB,
+            "beam_size": cfg.DECODE_STRATEGY.BEAM_SIZE,
+            "max_seq_len": cfg.MODEL.MAX_SEQ_LEN,
+            'bert_tokenizer': bert_tokenizer,
+            "bos_token_id": bos_token_id,
+            "eos_token_id": eos_token_id,
+            "clip": clip_model
         }
 
     def _select(self, batch_size, beam_size, t, candidate_logprob):
