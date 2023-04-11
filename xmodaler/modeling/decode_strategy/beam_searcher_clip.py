@@ -25,11 +25,22 @@ class BeamSearcherCLIP(DecodeStrategy):
     @configurable
     def __init__(
             self,
-            *,
-            clip,
-            **kwargs,
+            vocab_path,
+            beam_size,
+            max_seq_len,
+            bert_tokenizer,
+            bos_token_id,
+            eos_token_id,
+            clip=None,
     ):
-        super().__init__(kwargs)
+        super().__init__(
+            vocab_path,
+            beam_size,
+            max_seq_len,
+            bert_tokenizer,
+            bos_token_id,
+            eos_token_id)
+
         self.clip_model = clip
 
     @classmethod

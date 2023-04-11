@@ -15,7 +15,7 @@ class DecodeStrategy(nn.Module, metaclass=ABCMeta):
     @configurable
     def __init__(
         self,
-        *,
+        # *,
         vocab_path,
         beam_size,
         max_seq_len,
