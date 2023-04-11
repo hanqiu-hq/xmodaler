@@ -77,7 +77,11 @@ class BeamSearcherCLIP(DecodeStrategy):
     def _select(self, batch_size, beam_size, t, candidate_logprob):
         selected_logprob, selected_idx = torch.sort(candidate_logprob.view(batch_size, -1), -1, descending=True)
         selected_logprob, selected_idx = selected_logprob[:, :beam_size], selected_idx[:, :beam_size]
-        return selected_idx, selected_logprob
+
+        selected_beam = torch.div(selected_idx, candidate_logprob.shape[-1], rounding_mode='floor')
+        selected_words = selected_idx - selected_beam * candidate_logprob.shape[-1]
+
+        return selected_logprob, selected_beam, selected_words
 
     def _expand_state(self, states, selected_beam, batch_size, beam_size, cur_beam_size):
         for i in range(len(states)):
@@ -89,12 +93,60 @@ class BeamSearcherCLIP(DecodeStrategy):
                 beam.expand(*([batch_size, beam_size] + shape[1:])))
             states[i] = states[i].view(*([-1, ] + shape[1:]))
 
+    def _select_clip_based(
+            self,
+            batch_size,
+            beam_size,
+            t,
+            word_logprob,
+            seq_logprob,
+            seq_idx,
+            img_feature,
+            seq_mask):
+        """
+            seq_logprob: [bs, cur_beam_size, 1]
+            word_logprob: [bs, cur_beam_size, vocab_size]
+            seq_idx: [bs, beam_size, seq_length]
+            seq_mask: [bs, beam_size, 1]
+        """
+        cur_beam_size = word_logprob.shape[1]
+
+        old_word_logprob = word_logprob.clone()
+        old_word_logprob[:, :, 1:] = -999
+        old_word_logprob[:, :, 0] = 0
+        word_logprob = seq_mask * word_logprob + (1 - seq_mask) * old_word_logprob
+
+        top_logprob_per_beam, top_idx_per_beam = torch.topk(word_logprob, beam_size, dim=-1)
+        invalid_mask = top_logprob_per_beam.eq(-999)
+
+        seq_idx = torch.cat(seq_idx, -1).unsqueeze(2).repeat(1, 1, beam_size, 1)
+        candidate_seq_idx = torch.cat([seq_idx, top_idx_per_beam.unsqueeze(-1)], dim=-1)
+        candidate_clip_prob = self.clip_text_prob(img_feature, candidate_seq_idx)
+        candidate_clip_prob = candidate_clip_prob.reshape(batch_size, cur_beam_size, beam_size)
+
+        candidate_prob = (seq_logprob + top_logprob_per_beam).exp() + candidate_clip_prob
+        candidate_prob = (1 - invalid_mask) * candidate_prob + invalid_mask * -999
+
+        _, selected_idx = torch.topk(candidate_prob.view(batch_size, -1), beam_size, -1)
+        selected_word_logprob = torch.gather(top_logprob_per_beam.view(batch_size, -1), 1, selected_idx)
+        selected_words = torch.gather(top_idx_per_beam.view(batch_size, -1), 1, selected_idx)
+
+        selected_beam = torch.div(selected_idx, beam_size, rounding_mode='floor')
+
+        selected_seq_logprob = torch.gather(seq_logprob, 1, selected_beam.unsqueeze(2))
+        selected_logprob = selected_seq_logprob + selected_word_logprob
+
+        return selected_logprob, selected_beam, selected_words
+
     def clip_text_prob(self, img_feature, pred_sents_ids):
         """
             img_feature: shape[batch, C]
             pred_sents_ids: list [bs, beam_size, 1]
+            return:
+                prob_per_text: [bs, beam_size]
         """
-        pred_sents_ids = torch.cat(pred_sents_ids, -1)
+        if isinstance(pred_sents_ids, list):
+            pred_sents_ids = torch.cat(pred_sents_ids, -1)
         bs, beam_size, seq_length = pred_sents_ids.shape
         pred_sents_ids = pred_sents_ids.reshape(-1, seq_length)
 
@@ -111,10 +163,14 @@ class BeamSearcherCLIP(DecodeStrategy):
         if len(img_feature.shape) == 2:
             img_feature = img_feature.unsqueeze(1)
 
-        # logit_scale = self.clip_model.logit_scale.exp()
-        # logits_per_image = logit_scale * torch.bmm(img_feature, text_feature).squeeze(1)
-        # prob_per_text = logits_per_image.softmax(dim=-1)
-        prob_per_text = torch.bmm(img_feature, text_feature).squeeze(1)
+        # softmax probability
+        logit_scale = self.clip_model.logit_scale.exp()
+        logits_per_image = logit_scale * torch.bmm(img_feature, text_feature).squeeze(1)
+        prob_per_text = logits_per_image.softmax(dim=-1)
+
+        # cos similarity
+        # prob_per_text = torch.bmm(img_feature, text_feature).squeeze(1)
+
         return prob_per_text
 
     def _forward(self, batched_inputs, model):
@@ -155,11 +211,6 @@ class BeamSearcherCLIP(DecodeStrategy):
             decoder_out = model.decoder(inputs)
             inputs.update(decoder_out)
 
-            # if t > 1:
-            #     clip_prob = self.clip_text_prob(clip_img_feats, outputs)
-            # else:
-            #     clip_prob = 0
-
             logit = model.predictor(inputs)[kfg.G_LOGITS]
             word_logprob = F.log_softmax(logit, dim=-1)
             word_logprob = word_logprob.view(batch_size, cur_beam_size, -1)
@@ -174,9 +225,11 @@ class BeamSearcherCLIP(DecodeStrategy):
                 old_seq_logprob[:, :, 1:] = -999
                 candidate_logprob = seq_mask * candidate_logprob + old_seq_logprob * (1 - seq_mask)
 
-            selected_idx, selected_logprob = self._select(batch_size, beam_size, t, candidate_logprob)
-            selected_beam = torch.div(selected_idx, candidate_logprob.shape[-1], rounding_mode='floor')
-            selected_words = selected_idx - selected_beam * candidate_logprob.shape[-1]
+            if t > 2:
+                selected_logprob, selected_beam, selected_words = self._select_clip_based(
+                    batch_size, beam_size, t, word_logprob, seq_logprob, outputs, clip_img_feats, seq_mask)
+            else:
+                selected_logprob, selected_beam, selected_words = self._select(batch_size, beam_size, t, candidate_logprob)
  
             if kfg.HISTORY_STATES in inputs:
                 expand_keys = [kfg.HISTORY_STATES]
