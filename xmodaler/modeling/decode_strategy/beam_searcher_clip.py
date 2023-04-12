@@ -117,7 +117,7 @@ class BeamSearcherCLIP(DecodeStrategy):
         word_logprob = seq_mask * word_logprob + (1 - seq_mask) * old_word_logprob
 
         top_logprob_per_beam, top_idx_per_beam = torch.topk(word_logprob, beam_size, dim=-1)
-        invalid_mask = top_logprob_per_beam.eq(-999)
+        invalid_mask = top_logprob_per_beam.eq(-999).int()
 
         seq_idx = torch.cat(seq_idx, -1).unsqueeze(2).repeat(1, 1, beam_size, 1)
         candidate_seq_idx = torch.cat([seq_idx, top_idx_per_beam.unsqueeze(-1)], dim=-1)
