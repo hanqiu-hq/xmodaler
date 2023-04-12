@@ -134,7 +134,7 @@ class BeamSearcherCLIP(DecodeStrategy):
 
         selected_beam = torch.div(selected_idx, beam_size, rounding_mode='floor')
 
-        selected_seq_logprob = torch.gather(seq_logprob, 1, selected_beam.unsqueeze(2))
+        selected_seq_logprob = torch.gather(seq_logprob.squeeze(2), 1, selected_beam)
         selected_logprob = selected_seq_logprob + selected_word_logprob
 
         return selected_logprob, selected_beam, selected_words
