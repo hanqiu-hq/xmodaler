@@ -121,6 +121,7 @@ class BeamSearcherCLIP(DecodeStrategy):
 
         seq_idx = torch.cat(seq_idx, -1).unsqueeze(2).repeat(1, 1, beam_size, 1)
         candidate_seq_idx = torch.cat([seq_idx, top_idx_per_beam.unsqueeze(-1)], dim=-1)
+        candidate_seq_idx = candidate_seq_idx.reshape(batch_size, int(cur_beam_size * beam_size), -1)
         candidate_clip_prob = self.clip_text_prob(img_feature, candidate_seq_idx)
         candidate_clip_prob = candidate_clip_prob.reshape(batch_size, cur_beam_size, beam_size)
 
